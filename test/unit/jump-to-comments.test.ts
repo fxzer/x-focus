@@ -424,4 +424,29 @@ describe('jump-to-comments feature (bidirectional reply composer navigation)', (
       )
     })
   })
+
+  describe('focusReplyComposer', () => {
+    it('focuses and clicks real tweetTextarea_0 instead of outer tweetTextarea_0_label', async () => {
+      const { focusReplyComposer } = await import('../../content-scripts/features/jump-to-comments')
+      const wrapper = document.createElement('div')
+      wrapper.setAttribute('data-testid', 'tweetTextarea_0_label')
+
+      const realEditable = document.createElement('div')
+      realEditable.setAttribute('data-testid', 'tweetTextarea_0')
+      realEditable.setAttribute('contenteditable', 'true')
+      realEditable.setAttribute('role', 'textbox')
+
+      const focusSpy = vi.fn()
+      const clickSpy = vi.fn()
+      realEditable.focus = focusSpy
+      realEditable.click = clickSpy
+
+      wrapper.appendChild(realEditable)
+      document.body.appendChild(wrapper)
+
+      const success = focusReplyComposer(wrapper)
+      expect(focusSpy).toHaveBeenCalled()
+      expect(clickSpy).toHaveBeenCalled()
+    })
+  })
 })

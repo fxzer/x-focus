@@ -104,20 +104,28 @@ body[style*="background-color: rgb(21, 32, 43)"] {
   transition: opacity 0.15s ease 0.3s, transform 0.15s ease 0.3s !important;
 }
 
-@keyframes xf-jump-border-flash {
+@keyframes xf-reply-border-pulse {
   0% {
-    box-shadow: inset 0 0 0 2px rgba(29, 155, 240, 0.9) !important;
+    box-shadow: inset 0 0 0 1px rgba(29, 155, 240, 0), inset 0 0 0 rgba(29, 155, 240, 0);
   }
-  50% {
-    box-shadow: inset 0 0 0 2px rgba(29, 155, 240, 0.6) !important;
+  20% {
+    box-shadow: inset 0 0 0 1px rgba(29, 155, 240, 0.85), inset 0 0 6px rgba(29, 155, 240, 0.22);
+  }
+  45% {
+    box-shadow: inset 0 0 0 1px rgba(29, 155, 240, 0.3), inset 0 0 2px rgba(29, 155, 240, 0.06);
+  }
+  70% {
+    box-shadow: inset 0 0 0 1px rgba(29, 155, 240, 0.85), inset 0 0 6px rgba(29, 155, 240, 0.22);
   }
   100% {
-    box-shadow: inset 0 0 0 2px transparent !important;
+    box-shadow: inset 0 0 0 1px rgba(29, 155, 240, 0), inset 0 0 0 rgba(29, 155, 240, 0);
   }
 }
 
-.xf-jump-highlighted {
-  animation: xf-jump-border-flash 1.2s ease-out forwards !important;
+.xf-jump-highlighted,
+.xf-jump-highlighted > div:first-child {
+  border-radius: 12px !important;
+  animation: xf-reply-border-pulse 2s ease-in-out forwards !important;
 }
 `
 
@@ -166,6 +174,36 @@ export function getBottomOffset(): number {
   return 24
 }
 
+let cachedComposerY: number | null = null
+
+/**
+ * 聚焦回复框的核心方法：精确定位 contenteditable 或输入框元素，并触发 click 唤起完整编辑状态
+ */
+export function focusReplyComposer(root?: HTMLElement | null): boolean {
+  if (typeof document === 'undefined') return false
+
+  const scope = root || document
+  // 核心：精准匹配真实可输入的文本框，必须排除外层的纯展示容器 (如 tweetTextarea_0_label)
+  const editable =
+    scope.querySelector<HTMLElement>('[data-testid="tweetTextarea_0"]') ||
+    scope.querySelector<HTMLElement>('[data-testid^="tweetTextarea"][contenteditable="true"]') ||
+    scope.querySelector<HTMLElement>('[role="textbox"][contenteditable="true"]') ||
+    scope.querySelector<HTMLElement>('.DraftEditor-editorContainer [contenteditable="true"]') ||
+    (root ? document.querySelector<HTMLElement>('[data-testid="tweetTextarea_0"]') : null) ||
+    scope.querySelector<HTMLElement>('textarea, input')
+
+  if (!editable) return false
+
+  try {
+    editable.focus()
+    // Twitter/X 基于 Draft.js / Lexical，调用 click() 能够初始化选区并将光标置入文本框
+    editable.click()
+    return document.activeElement === editable
+  } catch {
+    return false
+  }
+}
+
 /**
  * 查找发评论的目标输入区域。
  * 核心原则：无论看主帖还是看评论，首要直达用户自己可以发评论的输入区域（Reply Composer）。
@@ -189,6 +227,13 @@ export function findCommentsTarget(): HTMLElement | null {
       (isStandaloneCell ? cell : null) ||
       textarea.closest<HTMLElement>('div[class*="r-184en5c"]') ||
       textarea
+
+    if (typeof window !== 'undefined') {
+      const top = composerCard.getBoundingClientRect().top + window.scrollY
+      if (top > 0) {
+        cachedComposerY = top
+      }
+    }
     return composerCard
   }
 
@@ -204,7 +249,15 @@ export function findCommentsTarget(): HTMLElement | null {
 
   // 3. 兜底方案：定位原生的回复输入框外层容器
   const inlineReply = document.querySelector<HTMLElement>('[data-testid="inline_reply_offscreen"]')
-  if (inlineReply) return inlineReply
+  if (inlineReply) {
+    if (typeof window !== 'undefined') {
+      const top = inlineReply.getBoundingClientRect().top + window.scrollY
+      if (top > 0) {
+        cachedComposerY = top
+      }
+    }
+    return inlineReply
+  }
 
   // 4. 次级兜底：当作者限制回复或已关闭评论、尚未加载输入框时，定位到主帖下方的第一个单元格/第一条评论
   const articles = Array.from(document.querySelectorAll<HTMLElement>('article[data-testid="tweet"]'))
@@ -267,33 +320,90 @@ function createJumpButton(): HTMLElement {
   btn.addEventListener('click', (e) => {
     e.preventDefault()
     e.stopPropagation()
-    const target = findCommentsTarget()
-    if (!target) return
 
-    // 预留顶部吸顶导航栏高度（约 60px）
+    const status = getJumpTargetStatus()
+    const target = status?.target || findCommentsTarget()
     const headerOffset = 60
-    const targetY = target.getBoundingClientRect().top + window.scrollY - headerOffset
+
+    let targetY: number
+    if (target && document.body.contains(target)) {
+      targetY = target.getBoundingClientRect().top + window.scrollY - headerOffset
+    } else if (cachedComposerY !== null) {
+      targetY = cachedComposerY - headerOffset
+    } else {
+      // 兜底：主推文与输入框位于时间线最顶部
+      targetY = 0
+    }
+
+    targetY = Math.max(0, targetY)
+
     window.scrollTo({
-      top: Math.max(0, targetY),
+      top: targetY,
       behavior: 'smooth',
     })
 
-    // 尝试定位并自动聚焦到回复输入框
-    const textarea = document.querySelector<HTMLElement>('[data-testid="tweetTextarea_0"]')
-    if (textarea) {
-      setTimeout(() => {
-        try {
-          textarea.focus()
-          // 视觉轻柔呼吸提示
-          target.classList.remove('xf-jump-highlighted')
-          void target.offsetWidth
-          target.classList.add('xf-jump-highlighted')
+    const triggerFocusAndHighlight = () => {
+      try {
+        const currentTarget =
+          findCommentsTarget() ||
+          document.querySelector<HTMLElement>('[data-testid="inline_reply_offscreen"]') ||
+          target
+
+        // 自动聚焦回复输入框
+        focusReplyComposer(currentTarget)
+
+        // 视觉微呼吸边框高亮
+        if (currentTarget) {
+          currentTarget.classList.remove('xf-jump-highlighted')
+          if (currentTarget.firstElementChild) {
+            currentTarget.firstElementChild.classList.remove('xf-jump-highlighted')
+          }
+          void currentTarget.offsetWidth
+          currentTarget.classList.add('xf-jump-highlighted')
+          if (currentTarget.firstElementChild) {
+            currentTarget.firstElementChild.classList.add('xf-jump-highlighted')
+          }
+
           setTimeout(() => {
-            target.classList.remove('xf-jump-highlighted')
-          }, 1400)
-        } catch {}
-      }, 260)
+            currentTarget.classList.remove('xf-jump-highlighted')
+            if (currentTarget.firstElementChild) {
+              currentTarget.firstElementChild.classList.remove('xf-jump-highlighted')
+            }
+          }, 2200)
+        }
+      } catch {}
     }
+
+    // 智能动态等待平滑滚动到位（支持现代 scrollend + 滚动位移停滞轮询检测 + 兜底）
+    let settled = false
+    const onScrollFinished = () => {
+      if (settled) return
+      settled = true
+      window.removeEventListener('scrollend', onScrollFinished)
+      clearInterval(settleInterval)
+      clearTimeout(maxFallbackTimer)
+      triggerFocusAndHighlight()
+      // Twitter 虚拟滚动异步重绘兜底：120ms 后再次触发聚焦以确保光标稳定置入
+      setTimeout(() => {
+        focusReplyComposer(findCommentsTarget())
+      }, 120)
+    }
+
+    window.addEventListener('scrollend', onScrollFinished, { once: true })
+
+    let lastY = window.scrollY
+    const settleInterval = setInterval(() => {
+      const currY = window.scrollY
+      const reachedTarget = Math.abs(currY - targetY) < 20
+      const isStopped = Math.abs(currY - lastY) < 2 && Math.abs(currY - targetY) < 150
+      const hasEditable = !!document.querySelector('[data-testid="tweetTextarea_0"]')
+      if ((reachedTarget || isStopped) && hasEditable) {
+        onScrollFinished()
+      }
+      lastY = currY
+    }, 60)
+
+    const maxFallbackTimer = setTimeout(onScrollFinished, 1200)
   })
 
   document.body.appendChild(btn)
@@ -476,6 +586,7 @@ export async function updateJumpToComments(force = false): Promise<void> {
  */
 export function destroyJumpToComments(): void {
   removeListeners()
+  cachedComposerY = null
   const btn = document.getElementById('xf-jump-to-comments')
   if (btn) btn.remove()
   removeStyles('jumpToCommentsStyles')
