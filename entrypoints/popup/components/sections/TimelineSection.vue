@@ -6,6 +6,7 @@ import {
   KeyHighlightNonFollowers,
   KeyArticleToc,
   KeyScheduledPanorama,
+  KeyJumpToComments,
 } from '../../../../storage-keys'
 import { STATIC_NAV_ITEMS } from '../../../../shared/staticNavIcons'
 import TimelineWidthSlider from '../controls/TimelineWidthSlider.vue'
@@ -30,6 +31,14 @@ const displayControls = [
     options: [
       { value: 'off', label: '显示' },
       { value: 'on', label: '隐藏' },
+    ],
+  },
+  {
+    label: '直达评论',
+    key: KeyJumpToComments,
+    options: [
+      { value: 'on', label: '显示' },
+      { value: 'off', label: '隐藏' },
     ],
   },
   {

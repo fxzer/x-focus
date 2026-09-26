@@ -25,6 +25,7 @@ export const KeySidebarColumn = 'sidebarColumn'
 export const KeyHighlightNonFollowers = 'highlightNonFollowers'
 export const KeyArticleToc = 'articleToc'
 export const KeyScheduledPanorama = 'scheduledPanorama'
+export const KeyJumpToComments = 'jumpToComments'
 
 // Spam filter storage keys
 export const KeySpamFilterEnabled = 'spamFilterEnabled'
@@ -96,6 +97,7 @@ export const allSettingsKeys = [
   KeyViralShowBadge,
   KeyArticleToc,
   KeyScheduledPanorama,
+  KeyJumpToComments,
 ] as const
 
 export type SettingKey = (typeof allSettingsKeys)[number]
@@ -220,4 +222,5 @@ export const defaultPreferences: Record<string, string | number | boolean> = {
   [KeyViralShowBadge]: 'on',
   [KeyArticleToc]: 'on',
   [KeyScheduledPanorama]: 'on',
+  [KeyJumpToComments]: 'on',
 }

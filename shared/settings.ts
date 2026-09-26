@@ -40,6 +40,7 @@ import {
   KeyViralShowBadge,
   KeyArticleToc,
   KeyScheduledPanorama,
+  KeyJumpToComments,
   allSettingsKeys,
   defaultPreferences,
 } from '../storage-keys'
@@ -91,6 +92,7 @@ export interface ExtensionSettings {
   [KeyViralShowBadge]: ToggleValue
   [KeyArticleToc]: ToggleValue
   [KeyScheduledPanorama]: ToggleValue
+  [KeyJumpToComments]: ToggleValue
 }
 
 export type SettingsPatch = Partial<Record<keyof ExtensionSettings, unknown>>
@@ -125,6 +127,7 @@ const TOGGLE_KEYS = new Set<string>([
   KeyViralShowBadge,
   KeyArticleToc,
   KeyScheduledPanorama,
+  KeyJumpToComments,
 ])
 
 function normalizeToggle(value: unknown, fallback: ToggleValue): ToggleValue {

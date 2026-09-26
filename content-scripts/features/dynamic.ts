@@ -29,6 +29,7 @@ import type { ExtensionSettings } from '../../shared/settings'
 import { runViralRadar } from './viral-radar'
 import { injectKeywordButton } from '../spam/keyword-picker'
 import { updateArticleToc } from './article-toc'
+import { updateJumpToComments } from './jump-to-comments'
 
 export type DynamicFeatureScope = 'tweet' | 'composer' | 'scheduled' | 'navigation' | 'all'
 
@@ -89,6 +90,7 @@ export const dynamicFeatures = {
           updateProfileActivityStats()
           void runViralRadar()
           updateArticleToc()
+          void updateJumpToComments()
           const s = await getCachedTweetSettings()
           if (s.ratioEnabled) {
             addStatRatioBadges(s.targetHandle)

@@ -1,6 +1,7 @@
 import selectors from '../selectors'
 import addStyles, { removeStyles } from '../utilities/addStyles'
 import { updateArticleToc, destroyArticleToc } from '../features/article-toc'
+import { updateJumpToComments, destroyJumpToComments } from '../features/jump-to-comments'
 import { addScheduledRelativeTimes, removeScheduledPanorama } from './scheduled-time'
 import { ensureCustomTweetButton } from './navigation'
 
@@ -81,6 +82,14 @@ export const changeScheduledPanorama = (state: string | number | boolean) => {
     removeScheduledPanorama()
   } else {
     void addScheduledRelativeTimes('on')
+  }
+}
+
+export const changeJumpToComments = (state: string | number | boolean) => {
+  if (state === 'off' || state === 'hide') {
+    destroyJumpToComments()
+  } else {
+    void updateJumpToComments(true)
   }
 }
 
